@@ -623,7 +623,7 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
                            reject(output);
                            return;
                        }else{
-console.log("ok")
+                           var link = "http://165.22.8.5:3006/forgetPassword/code="+randomCode;
                        }
                    })
                }else{
