@@ -623,7 +623,7 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
                            reject(output);
                            return;
                        }else{
-
+console.log("ok")
                        }
                    })
                }else{
