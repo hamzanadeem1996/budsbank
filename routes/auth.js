@@ -423,11 +423,9 @@ console.log(sql);
                     output = { status: 400, isSuccess: false, message: response.message };
                     return res.json(output);
                 }
-                else {
+                else { console.log(response.data[0].code); console.log(verificationCode);
                     if (response.data.length > 0) {
                         if (response.data[0].code === verificationCode) {
-                            var today = new Date();
-
                             var sql = `UPDATE users SET email_verified_at = UNIX_TIMESTAMP(), longitude = ${longitude}, latitude = ${latitude} WHERE id = ${userId}`;
                             helperFile.executeQuery(sql).then(response => {
                                 console.log(response);
