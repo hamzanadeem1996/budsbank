@@ -423,7 +423,8 @@ console.log(sql);
                     output = { status: 400, isSuccess: false, message: response.message };
                     return res.json(output);
                 }
-                else { console.log(response.data[0].code); console.log(verificationCode);
+                else {
+                    console.log(response.data[0].code); console.log(verificationCode);
                     if (response.data.length > 0) {
                         if (response.data[0].code === verificationCode) {
                             var sql = `UPDATE users SET email_verified_at = UNIX_TIMESTAMP(), longitude = ${longitude}, latitude = ${latitude} WHERE id = ${userId}`;
