@@ -58,7 +58,6 @@ exports.checkUserNameExists = function(userName) {
     return new Promise((resolve)=>{
         const SQL = `SELECT username FROM users WHERE username = '${userName}'`;
         exports.executeQuery(SQL).then(response =>{
-            console.log(response);
             if (!response.isSuccess){
                 output = {status: 400, isSuccess: false, message: response.message };
             }else{

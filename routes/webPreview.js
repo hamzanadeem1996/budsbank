@@ -1,8 +1,25 @@
 var helperFile = require('../helpers/helperFunctions.js');
 var auth = require('./auth');
+var Cryptr = require('cryptr');
+cryptr = new Cryptr(process.env.PASS_SECRET);
 
 exports.forgotPassword = function (req, res) {
-    res.render('forgetPassword.html');
+    // console.log(req.params.code);
+    var code = req.params.code;
+    var error = "";
+    var userID;
+    if (!code){
+        error = "Invalid Verification Code";
+    }else{
+        var decrptCode = cryptr.decrypt(code);
+        SQL = `SELECT user_id FROM user_verification WHERE code = '${decrptCode}'`;
+        helperFile.executeQuery(SQL).then(response => {
+           if (response.data.length > 0){
+               userID = response.data[0].user_id;
+               res.render('forgetPassword', {user : userID});
+           }
+        });
+    }
 };
 
 exports.generateLinkToEmail = function (req, res) {

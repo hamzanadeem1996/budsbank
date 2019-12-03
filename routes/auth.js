@@ -23,13 +23,14 @@ schema
 
 var auth = {
     login: function (req, res) {
+
         helperFile.validateHeader(req).then(responseReqCheck => {
            if (!responseReqCheck.isSuccess){
                res.json(responseReqCheck);
                return;
            }
         });
-        var phone = req.body.phone || '';
+        var loginValue = req.body.value || '';
         var password = req.body.password || '';
         var longitude = req.body.longitude || '';
         var latitude = req.body.latitude || '';
@@ -43,7 +44,7 @@ var auth = {
             return;
         }
 
-        if (phone === '' || password === '') {
+        if (loginValue === '' || password === '') {
             res.json({
                 "status": 401,
                 "isSuccess": false,
@@ -52,7 +53,7 @@ var auth = {
             return;
         }
 
-        auth.validateLogin(phone, password).then(response => {
+        auth.validateLogin(loginValue, password).then(response => {
             if (!response.isSuccess) {
                 res.json({
                     "status": 401,
@@ -62,7 +63,11 @@ var auth = {
                 return;
             }
             if (response.isSuccess) {
-                var SQL = `UPDATE users SET longitude = ${longitude}, latitude = ${latitude} WHERE phone = '${phone}'`;
+                if (isNaN(loginValue)){
+                    var SQL = `UPDATE users SET longitude = ${longitude}, latitude = ${latitude} WHERE email = '${loginValue}'`;
+                }else{
+                    var SQL = `UPDATE users SET longitude = ${longitude}, latitude = ${latitude} WHERE phone = '${loginValue}'`;
+                }
                 helperFile.executeQuery(SQL).then(responseForLocation => {
                    if (!responseForLocation.isSuccess){
                        res.json({
@@ -80,7 +85,7 @@ var auth = {
 
     updatePassword: function(req, res){
         var password = req.body.password || '';
-        var userID = req.body.id || '';
+        var userID = req.body.user_id || '';
 
         if (password === '' || userID === ''){
             res.json({
@@ -98,7 +103,6 @@ var auth = {
         }
 
         if (userID){
-            userID = cryptr.decrypt(userID);
             newPassword = cryptr.encrypt(password);
             sql = "UPDATE users SET `password` = '"+newPassword+"' WHERE `id` = "+userID+"";
             helperFile.executeQuery(sql).then(response => {
@@ -116,11 +120,15 @@ var auth = {
         }
     },
 
-    validateLogin: function (phone, password) {
-        var today = new Date();
+    validateLogin: function (loginValue, password) {
         return new Promise((resolve, reject) => {
-            var sql = "SELECT * FROM `users` WHERE (phone = '" + phone + "')";
-            helperFile.executeQuery(sql).then(response => {
+            if (isNaN(loginValue)){
+                var sql = "SELECT * FROM `users` WHERE email = '" + loginValue + "' ";
+            }else{
+                var sql = "SELECT * FROM `users` WHERE phone = '" + loginValue + "' ";
+            }
+console.log(sql);
+            helperFile.executeQuery(sql).then(response => { console.log(response);
                 if (!response.isSuccess) {
                     output = { status: 400, isSuccess: false, message: response.message };
                     return resolve(output);
@@ -156,7 +164,7 @@ var auth = {
                         }
                     }
                     else {
-                        output = { status: 400, isSuccess: false, message: "Phone does not exists" };
+                        output = { status: 400, isSuccess: false, message: "Email or Phone does not exists" };
                         return resolve(output);
                     }
                 }
@@ -312,7 +320,12 @@ var auth = {
                                         res.json(output);
                                         return;
                                     }else{
-                                        res.json(response);
+                                        // console.log(response.user.id);
+                                        sendVerificationCodeToEmail(email, "verification", response.user.id).then(verificationResponse => {
+                                            res.json(response);
+                                        }).catch(err => {
+                                            return res.json(err);
+                                        })
                                     }
                                 });
                             }
@@ -606,12 +619,12 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
         var randomCode = "";
         randomCode = "GH-" + randomstring.generate({ length: 3, charset: 'numeric' }) + "-" + randomstring.generate({ length: 3, charset: 'numeric' });
         var updateCodeQuery = "";
-
+        var link = "";
         var SQL = `SELECT * FROM user_verification WHERE user_id = ${userID}`;
         helperFile.executeQuery(SQL).then(responseForCheckCodeExists => {
             console.log(responseForCheckCodeExists);
            if (!responseForCheckCodeExists.isSuccess){
-               output = { status: 400, isSuccess: false, message: responseForCheckCodeExists.message }
+               output = { status: 400, isSuccess: false, message: responseForCheckCodeExists.message };
                reject(output);
                return;
            } else{
@@ -623,7 +636,14 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
                            reject(output);
                            return;
                        }else{
-                           var link = "http://165.22.8.5:3006/forgetPassword/code="+randomCode;
+                           var encryptedCode = cryptr.encrypt(randomCode);
+                           link = `${process.env.BASE_URL}/forgetPassword/${encryptedCode}`;
+                           // console.log(link);
+                           sendEmail(email, randomCode, requestType, link).then(response => {
+                               resolve(response);
+                           }).catch(error => {
+                               reject(error);
+                           });
                        }
                    })
                }else{
@@ -637,11 +657,6 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
                    });
                }
            }
-        });
-        sendEmail(email, randomCode, requestType).then(response => {
-            resolve(response);
-        }).catch(error => {
-            reject(error);
         });
     })
 }

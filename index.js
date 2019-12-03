@@ -12,9 +12,7 @@ app.use(bodyParser.urlencoded({ extended: true, limit: "500mb" }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.set('views', path.join(__dirname, 'views'));
-app.engine('html', require('ejs').renderFile);
-app.set('view engine', 'html');
-// app.set('view engine', 'jade');
+app.set('view engine', 'jade');
 dotenv.config();
 
 app.all('/*', function (req, res, next) {
