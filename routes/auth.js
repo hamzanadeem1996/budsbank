@@ -320,7 +320,7 @@ console.log(sql);
                                         res.json(output);
                                         return;
                                     }else{
-                                        // console.log(response.user.id);
+                                        console.log(response.user.id);
                                         sendVerificationCodeToEmail(email, "verification", response.user.id).then(verificationResponse => {
                                             res.json(response);
                                         }).catch(err => {
@@ -622,7 +622,6 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
         var link = "";
         var SQL = `SELECT * FROM user_verification WHERE user_id = ${userID}`;
         helperFile.executeQuery(SQL).then(responseForCheckCodeExists => {
-            console.log(responseForCheckCodeExists);
            if (!responseForCheckCodeExists.isSuccess){
                output = { status: 400, isSuccess: false, message: responseForCheckCodeExists.message };
                reject(output);
@@ -654,6 +653,11 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
                            reject(output);
                            return;
                        }
+                       sendEmail(email, randomCode, requestType, link).then(response => {
+                           resolve(response);
+                       }).catch(error => {
+                           reject(error);
+                       });
                    });
                }
            }
