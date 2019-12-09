@@ -8,7 +8,7 @@ module.exports = function(req, res, next) {
 
     if (token) {
         try {
-            var decoded = jwt.decode(token, process.env.TOKEN_SECRET);
+             // var decoded = jwt.decode(token, process.env.TOKEN_SECRET);
 
             validateRequest(token).then(dbUser =>{
                 if (dbUser.isSuccess) {

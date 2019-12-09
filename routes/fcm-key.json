@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "budsbank-9748d",
+  "private_key_id": "de0a666f357e5ab1c32820588c0af3fca652c6a0",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDhV4fGzImM254Z\nyMllRFo3YPf06kZIP47EBMULylkyk0FeC3fc4OjzmmpGKfnRv5G+rHisZGJs3nWT\nvtuSYzYwd8mqk8DSImUTyrgfI+Evy0pGXViLGLpgRFI2d3vp+vPlC2e35cnJJsNw\nU3KxrwCSvQr27Dy2LwJs6I1ZgTuFlf6J//ET2uGFctR6BExPu1slD55EkZMkgPg1\nU/Mpd+AabNevcoYe5dGBJA8hVEfCXCdywyIeJ4ojll2ZIqroQeUcSUt9yGPpC0Bj\n8aqUq82lQwNwBPkfvM/8gEWQLyx8LTq7BWLL8AWpDOCbctJz/7DzxOBapYVigohQ\n2R9xf20pAgMBAAECggEABCJQjFJwwNgz39N+89L4yaSqXbHv3GuMQ4zNlBbXY0MB\nVMTbAFBpn9bVygOmIK/UnraplKHjArySPNFuJYc7+GfAuuJZgGFn+ZTu6M3jNNnC\n3geDX+0sQWzd/oW4jNbCo1dPRPIZCkgtuio6HfCoGqBVfx28SzfjHBhLMKdPhXbK\n27vQRZddCjJYvGttNNShK6MoJquepYLlbRu4yqEt+H8/5MWLJoPk+bu01O+vuWbm\n7ex5Kh0Rs6OMaB4zicT8RDxG+j0TK2Oar5BcEL+TSaWGrwKria5u9MQWwNiqln5a\nrCUhclhKU5rlbGA78FF3qXwlJ3tszZOKR3nPCERUmwKBgQD2xaX+Uze3scya58t1\nYTF0MaP6ppSPa6OWX0lstfiBs8AViVAqJwvpXZgUFaUbLAuQC/yyZxJWVmilSzEB\nKMMq4c4GbQDawsL2QULkYkCu754p9mFn87n7Q/cj2A/+OBXJ5urR74c8osvgpQVw\nA9x+8aYTJd7FtfstQDgl4A1p/wKBgQDpxLsd8BcUyHdPLKmOEUA4owBy7H+4SnIp\nA5WnAHVDPDo4TnUk+S/aEYkXpML6/wkuq9c1m5DuFVNDDjMBrm1d3EETzzejr3PL\n/eVGKNEQLwAww/DvQcsVdvmjNX3s+KlpbMCxeOeo8aFmKlFT9TbgHvHOg8Do+wOi\n2uBWOLSY1wKBgQCF4c2hIb0E6G29TSzRTh3qkFQK1P2coiVqm9/WHxPoKoF4LbtU\nY0LPJXwwyV1+VHMhf59lmw4T0WWM6DJ6EodwaHnCerkP9sKXn+iOx8+YGWCSG53V\nLCIm9ETNKZfjsMIBfErCA1Y3y4sZIe7FSxMBvFEB6nXmhkjzz/emdNxSOQKBgFxu\nTjIrMWUlUo96sFwdFBCQ2ueV/XYn8XWoFi8fLj50fOywkP8ajEIkNtmjavkFiGLs\nzT5EEY0h33cfESn0Bwhaw1yKzYwqHpYlANe54dgNTXz6rLRdhmgpT9Gpn+3n8Exg\nFNzXWnnheJjF2Lxis9zwP1oRnGBCiBCHjLZq23WnAoGBAIc2vhwxLmZNhZai4hwA\n3pRxXMCEWOKnAqPZYFZYDSzdqxwZtN56+tKTdBk32Dp/tlkw2Uusur0fP+XUO+Xo\nYc4YeDy8Uxy6CRkDlo4sKnW9wsBsDgus3nNuh93EmYqndcp+STz2KEVQCMhTakEa\njhMw8+utfiVq2At3QmlhYAfw\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-k0pg9@budsbank-9748d.iam.gserviceaccount.com",
+  "client_id": "101493754653550787260",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-k0pg9%40budsbank-9748d.iam.gserviceaccount.com"
+}

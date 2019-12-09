@@ -7,6 +7,8 @@ var helperFile = require('../helpers/helperFunctions.js');
 var passwordValidator = require('password-validator');
 const emailUtil = require('../email/email-util');
 const { sendEmail } = emailUtil;
+var dispensaries = require('./dispansaries');
+var voucher = require('./voucher');
 
 // Create a schema
 var schema = new passwordValidator();
@@ -23,7 +25,6 @@ schema
 
 var auth = {
     login: function (req, res) {
-
         helperFile.validateHeader(req).then(responseReqCheck => {
            if (!responseReqCheck.isSuccess){
                res.json(responseReqCheck);
@@ -34,6 +35,9 @@ var auth = {
         var password = req.body.password || '';
         var longitude = req.body.longitude || '';
         var latitude = req.body.latitude || '';
+
+        var limit = req.query.limit || process.env.LIMIT;
+        var offset = req.query.offset || process.env.OFF_SET;
 
         if (longitude === '' || latitude === ''){
             res.json({
@@ -78,7 +82,52 @@ var auth = {
                        return;
                    }
                 });
-                res.json(response);
+                dispensaries.getAvailableDispensaries(response.user.id, longitude, latitude, limit, offset).then(responseForDispensaries=>{
+                   if (!responseForDispensaries.isSuccess){
+                       output = {status: 400, isSuccess: false, message: responseForDispensaries.message};
+                       res.json(output);
+                   } else{
+                        response["dispensaries"] = responseForDispensaries.dispensaries;
+                        dispensaries.getCompletedDispensaries(response.user.id, limit, offset).then(responseForCompletedDispensaries => {
+                            if (!responseForCompletedDispensaries.isSuccess){
+                                res.json(responseForCompletedDispensaries.message)
+                            }else{
+                                response["completed_dispensaries"] = responseForCompletedDispensaries.completed_dispensaries;
+                            }
+                            SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+                                    created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
+                                    cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
+                                    sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
+                                    WHERE user_id = ${response.user.id} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
+                                    ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
+                            helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
+                                if (!responseForFeaturedDispensaries.isSuccess){
+                                    output = {status: 400, isSuccess: false, message: responseForFeaturedDispensaries.message};
+                                    res.json(output);
+                                }else{
+                                    response["featured_dispensaries"] = responseForFeaturedDispensaries.data;
+                                }
+                                voucher.getVoucherContent(response.user.id, 'available', limit, offset).then(responseForAvailableVoucher => {
+                                    if (!responseForAvailableVoucher.isSuccess){
+                                        output = {status: 400, isSuccess: false, message: responseForAvailableVoucher.message};
+                                        res.json(output);
+                                    }else{
+                                        response["available_vouchers"] = responseForAvailableVoucher.vouchers;
+                                    }
+                                    voucher.getVoucherContent(response.user.id, 'redeemed', limit, offset).then(responseForRedeemedVoucher => {
+                                        if (!responseForRedeemedVoucher.isSuccess){
+                                            output = {status: 400, isSuccess: false, message: responseForRedeemedVoucher.message};
+                                            res.json(output);
+                                        }else{
+                                            response["redeemed_vouchers"] = responseForRedeemedVoucher.vouchers;
+                                        }
+                                        res.json(response);
+                                    });
+                                });
+                            });
+                        });
+                   }
+                });
             }
         });
     },
@@ -127,8 +176,7 @@ var auth = {
             }else{
                 var sql = "SELECT * FROM `users` WHERE phone = '" + loginValue + "' ";
             }
-console.log(sql);
-            helperFile.executeQuery(sql).then(response => { console.log(response);
+            helperFile.executeQuery(sql).then(response => {
                 if (!response.isSuccess) {
                     output = { status: 400, isSuccess: false, message: response.message };
                     return resolve(output);
@@ -137,26 +185,31 @@ console.log(sql);
                     if (response.data.length > 0) {
                         var dbPassword = cryptr.decrypt(response.data[0].password);
                         if (password === dbPassword) {
-                            var loggedInUserID = response.data[0].id;
-                            var token = jwt.encode({
-                                userId: loggedInUserID
-                            }, process.env.TOKEN_SECRET);
-                            var SQL = `UPDATE user_token SET token = '${token}' WHERE user_id = ${loggedInUserID}`;
-                            helperFile.executeQuery(SQL).then(resposneForInsertingToken => {
-                               if (!resposneForInsertingToken.isSuccess){
-                                   output = { status: 400, isSuccess: false, message: resposneForInsertingToken.message };
-                               } else{
-                                   var SQL = `SELECT t.token as session_token, u.id, u.email, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${loggedInUserID}`;
-                                   helperFile.executeQuery(SQL).then(responseForUserModel => {
-                                       if (!responseForUserModel.isSuccess){
-                                           output = { status: 400, isSuccess: false, message: responseForUserModel.message };
-                                       }else {
-                                           output = { status: 200, isSuccess: true, message: "User Logged In Successfully", user: responseForUserModel.data[0] };
-                                           resolve(output);
-                                       }
-                                   });
-                               }
-                            });
+                            if (response.data[0].email_verified_at === null){
+                                output = { status: 400, isSuccess: false, message: "User not verified" };
+                                return resolve(output);
+                            }else{
+                                var loggedInUserID = response.data[0].id;
+                                var token = jwt.encode({
+                                    userId: loggedInUserID
+                                }, process.env.TOKEN_SECRET);
+                                var SQL = `UPDATE user_token SET token = '${token}' WHERE user_id = ${loggedInUserID}`;
+                                helperFile.executeQuery(SQL).then(resposneForInsertingToken => {
+                                    if (!resposneForInsertingToken.isSuccess){
+                                        output = { status: 400, isSuccess: false, message: resposneForInsertingToken.message };
+                                    } else{
+                                        var SQL = `SELECT t.token as session_token, u.id, u.email, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${loggedInUserID}`;
+                                        helperFile.executeQuery(SQL).then(responseForUserModel => {
+                                            if (!responseForUserModel.isSuccess){
+                                                output = { status: 400, isSuccess: false, message: responseForUserModel.message };
+                                            }else {
+                                                output = { status: 200, isSuccess: true, message: "User Logged In Successfully", user: responseForUserModel.data[0] };
+                                                resolve(output);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
                         }
                         else{
                             output = { status: 400, isSuccess: false, message: CNST.WRONG_PASSWORD };
@@ -164,7 +217,7 @@ console.log(sql);
                         }
                     }
                     else {
-                        output = { status: 400, isSuccess: false, message: "Email or Phone does not exists" };
+                        output = { status: 400, isSuccess: false, message: "Account does not exists" };
                         return resolve(output);
                     }
                 }
@@ -320,7 +373,6 @@ console.log(sql);
                                         res.json(output);
                                         return;
                                     }else{
-                                        console.log(response.user.id);
                                         sendVerificationCodeToEmail(email, "verification", response.user.id).then(verificationResponse => {
                                             res.json(response);
                                         }).catch(err => {
@@ -393,6 +445,8 @@ console.log(sql);
         var verificationCode = req.body.verificationCode || '';
         var longitude = req.body.longitude || '';
         var latitude = req.body.latitude || '';
+        var limit = req.query.limit || process.env.LIMIT;
+        var offset = req.query.offset || process.env.OFF_SET;
         var output = "";
         if (!verificationCode) {
             output = { status: 400, isSuccess: false, message: CNST.VERIFICATION_CODE_REQ }
@@ -409,13 +463,13 @@ console.log(sql);
             res.json(output);
         }
 
-        auth.loginUserId(req, res).then(response => {
-            if (!response.isSuccess) {
+        auth.loginUserId(req, res).then(userResponse => {
+            if (!userResponse.isSuccess) {
                 output = { status: 403, isSuccess: false, message: CNST.INVALID_USER };
                 res.json(output);
                 return;
             }
-            var userId = response.id;
+            var userId = userResponse.id;
             var token = req.headers['x-access-token'] || '';
             var sql = `SELECT code FROM user_verification WHERE user_id = ${userId}`;
             helperFile.executeQuery(sql).then(response => {
@@ -424,28 +478,78 @@ console.log(sql);
                     return res.json(output);
                 }
                 else {
-                    console.log(response.data[0].code); console.log(verificationCode);
                     if (response.data.length > 0) {
                         if (response.data[0].code === verificationCode) {
-                            var sql = `UPDATE users SET email_verified_at = UNIX_TIMESTAMP(), longitude = ${longitude}, latitude = ${latitude} WHERE id = ${userId}`;
+                            var sql = `UPDATE users SET email_verified_at = 'true', longitude = ${longitude}, latitude = ${latitude} WHERE id = ${userId}`;
                             helperFile.executeQuery(sql).then(response => {
-                                console.log(response);
                                 if (!response.isSuccess) {
                                     output = { status: 400, isSuccess: false, message: response.message };
                                 }
                                 else {
-                                    //GET USER INFORMATION
                                     var SQL = `SELECT t.token as session_token, u.id, u.email, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${userId}`;
                                     helperFile.executeQuery(SQL).then(userData => {
                                         if (!userData.isSuccess) {
                                             output = { status: 400, isSuccess: false, message: userData.message };
                                         }
                                         else {
-                                            output = { results: userData.data, status: 200, isSuccess: true, message: CNST.VERIFIED_SUCCESS }
+                                            dispensaries.getAvailableDispensaries(userId, longitude, latitude, limit, offset).then(responseForDispensaries=>{
+                                                if (!responseForDispensaries.isSuccess){
+                                                    output = {status: 400, isSuccess: false, message: responseForDispensaries.message};
+                                                    res.json(output);
+                                                } else{
+                                                    userResponse["dispensaries"] = responseForDispensaries.dispensaries;
+                                                    dispensaries.getCompletedDispensaries(userId, limit, offset).then(responseForCompletedDispensaries => {
+                                                        if (!responseForCompletedDispensaries.isSuccess){
+                                                            res.json(responseForCompletedDispensaries.message)
+                                                        }else{
+                                                            userResponse["completed_dispensaries"] = responseForCompletedDispensaries.completed_dispensaries;
+                                                        }
+                                                        SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+                                                        created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
+                                                        cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
+                                                        sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
+                                                        WHERE user_id = ${userId} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
+                                                        ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
+                                                        helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
+                                                            if (!responseForFeaturedDispensaries.isSuccess){
+                                                                output = {status: 400, isSuccess: false, message: responseForFeaturedDispensaries.message};
+                                                                res.json(output);
+                                                            }else{
+                                                                userResponse["featured_dispensaries"] = responseForFeaturedDispensaries.data;
+                                                            }
+                                                            voucher.getVoucherContent(userId, 'available', limit, offset).then(responseForAvailableVoucher => {
+                                                                if (!responseForAvailableVoucher.isSuccess){
+                                                                    output = {status: 400, isSuccess: false, message: responseForAvailableVoucher.message};
+                                                                    res.json(output);
+                                                                }else{
+                                                                    userResponse["available_vouchers"] = responseForAvailableVoucher.vouchers;
+                                                                }
+                                                                voucher.getVoucherContent(userId, 'redeemed', limit, offset).then(responseForRedeemedVoucher => {
+                                                                    if (!responseForRedeemedVoucher.isSuccess){
+                                                                        output = {status: 400, isSuccess: false, message: responseForRedeemedVoucher.message};
+                                                                        res.json(output);
+                                                                    }else{
+                                                                        userResponse["redeemed_vouchers"] = responseForRedeemedVoucher.vouchers;
+                                                                    }
+                                                                    output = {
+                                                                        user: userData.data[0],
+                                                                        dispensaries:userResponse.dispensaries,
+                                                                        completed_dispensaries: userResponse.completed_dispensaries,
+                                                                        featured_dispensaries: userResponse.featured_dispensaries,
+                                                                        available_vouchers: userResponse.available_vouchers,
+                                                                        redeemed_vouchers: userResponse.redeemed_vouchers,
+                                                                        status: 200,
+                                                                        isSuccess: true,
+                                                                        message: CNST.VERIFIED_SUCCESS }
+                                                                    return res.json(output);
+                                                                });
+                                                            });
+                                                        });
+                                                    });
+                                                }
+                                            });
                                         }
-                                        return res.json(output);
                                     })
-
                                 }
                             })
                         }
@@ -464,50 +568,7 @@ console.log(sql);
 
     },
 
-    verifyForgotPasswordOtp: function (req, res) { //Verify code provided by the user while forgot password
-        var verificationCode = req.body.verificationCode || '';
-        var id = req.body.userId || '';
-        id = cryptr.decrypt(id);
-        if (!verificationCode) {
-            output = { status: 400, isSuccess: false, message: CNST.VERIFICATION_CODE_REQ }
-            res.json(output);
-        }
-        if (!id) {
-            output = { status: 400, isSuccess: false, message: CNST.USER_ID_REQ }
-            res.json(output);
-        }
-        var sql = `SELECT verificationCode FROM users WHERE id = ${id}`;
-        helperFile.executeQuery(sql).then(response => {
-            if (!response.isSuccess) {
-                output = { status: 400, isSuccess: false, message: response.message };
-                return res.json(output);
-            }
-            else {
-                if (response.data.length > 0) {
-                    if (response.data[0].verificationCode === verificationCode) {
-                        var sql = `UPDATE users SET isVerified = 'true' WHERE id = ${id}`;
-                        helperFile.executeQuery(sql).then(response => {
-                            if (!response.isSuccess) {
-                                output = { status: 400, isSuccess: false, message: error.message };
-                            }
-                            else {
-                                output = { status: 200, isSuccess: true, message: CNST.VERIFIED_SUCCESS }
-                            }
-                            return res.json(output);
-                        })
-                    }
-                    else {
-                        output = { status: 400, isSuccess: false, message: CNST.WRONG_VERIFICATION_CODE };
-                        return res.json(output);
-                    }
-                }
-                else {
-                    output = { status: 400, isSuccess: false, message: CNST.NOT_AUTHORIZED_USER };
-                    return res.json(output);
-                }
-            }
-        })
-    },
+
 
     resetPassword: function (req, res) {
         var myobj = req.body,
@@ -592,26 +653,6 @@ console.log(sql);
         })
     }
 }
-//Save verification code in db
-function saveVerificationCode(id, mobile) {
-    return new Promise((resolve, reject) => {
-        var verificationCode = "GH-" + randomstring.generate({ length: 3, charset: 'numeric' }) + "-" + randomstring.generate({ length: 3, charset: 'numeric' });
-        var sql = "UPDATE `users` SET verificationType = 'mobile', verificationCode = '" + verificationCode + "' WHERE id = " + id + "";
-        helperFile.executeQuery(sql).then(response => {
-            if (!response.isSuccess) {
-                output = { status: 400, isSuccess: false, message: response.message };
-                resolve(output)
-            }
-            else {
-                helperFile.sendOTP(mobile, verificationCode).then(response => {
-                    resolve(response)
-                })
-
-            }
-        })
-    })
-
-}
 
 function sendVerificationCodeToEmail(email, requestType, userID) {
     return new Promise((resolve, reject) => {
@@ -663,5 +704,177 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
         });
     })
 }
+
+auth.getHomeContent = function(req, res){
+    var userID = req.body.user_id || '';
+    var longitude = req.body.longitude || '';
+    var latitude = req.body.latitude || '';
+    var limit = req.query.limit || process.env.LIMIT;
+    var offset = req.query.offset || process.env.OFF_SET;
+    var response = {};
+    var allData = [];
+    if (!userID){
+        output = {status: 400, isSuccess: false, message: "User ID required"};
+        res.json(output);
+        return;
+    }
+    if (!longitude){
+        output = {status: 400, isSuccess: false, message: "Longitude required"};
+        res.json(output);
+        return;
+    }
+    if (!latitude){
+        output = {status: 400, isSuccess: false, message: "Latitude required"};
+        res.json(output);
+        return;
+    }
+
+    dispensaries.getAvailableDispensaries(userID, longitude, latitude, limit, offset).then(responseForDispensaries=>{
+        if (!responseForDispensaries.isSuccess){
+            output = {status: 400, isSuccess: false, message: responseForDispensaries.message};
+            res.json(output);
+        } else{
+            dispensaries.getCompletedDispensaries(userID,limit, offset).then(responseForCompletedDispensaries => {
+                if (!responseForCompletedDispensaries.isSuccess){
+                    res.json(responseForCompletedDispensaries.message)
+                }else{
+                    responseForDispensaries["completed_dispensaries"] = responseForCompletedDispensaries.completed_dispensaries;
+                }
+                SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+                                    created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
+                                    cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
+                                    sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
+                                    WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
+                                    ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
+                helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
+                    if (!responseForFeaturedDispensaries.isSuccess) {
+                        output = {status: 400, isSuccess: false, message: responseForFeaturedDispensaries.message};
+                        res.json(output);
+                    } else {
+                        responseForDispensaries["featured_dispensaries"] = responseForFeaturedDispensaries.data;
+                    }
+                    voucher.getVoucherContent(userID, 'available',limit, offset).then(responseForAvailableVoucher => {
+                        if (!responseForAvailableVoucher.isSuccess){
+                            output = {status: 400, isSuccess: false, message: responseForAvailableVoucher.message};
+                            res.json(output);
+                        }else{
+                            responseForDispensaries["available_vouchers"] = responseForAvailableVoucher.vouchers;
+                        }
+                        voucher.getVoucherContent(userID, 'redeemed',limit, offset).then(responseForRedeemedVoucher => {
+                            if (!responseForRedeemedVoucher.isSuccess){
+                                output = {status: 400, isSuccess: false, message: responseForRedeemedVoucher.message};
+                                res.json(output);
+                            }else{
+                                responseForDispensaries["redeemed_vouchers"] = responseForRedeemedVoucher.vouchers;
+                            }
+                            res.json(responseForDispensaries);
+                        });
+                    });
+                });
+            });
+        }
+    });
+};
+
+auth.getUserProfile = function(req, res){
+  var userID = req.body.user_id || '';
+  if (!userID){
+      output = {status:400, isSuccess: false, message: "User ID required"};
+      res.json(output);
+      return;
+  }
+  SQL = `SELECT * FROM users WHERE id = ${userID}`;
+  helperFile.executeQuery(SQL).then(response => {
+     if (!response.isSuccess){
+         output = {status:400, isSuccess: false, message: response.message};
+         res.json(output);
+     } else{
+         if (response.data.length > 0){
+             delete response.data[0]["password"];
+             output = {status:200, isSuccess: true, message: "Success", user: response.data};
+             res.json(output);
+         }else{
+             output = {status:400, isSuccess: false, message: "Invalid User"};
+             res.json(output);
+         }
+     }
+  });
+};
+
+auth.updateUserProfile = function(req, imageName){
+    return new Promise((resolve)=>{
+        var userID = req.body.user_id || '';
+        var userName = req.body.username || '';
+        var phone = req.body.phone || '';
+        var firstName = req.body.first_name || '';
+        var lastName = req.body.last_name || '';
+
+        if (!userID){
+            output = {status:400, isSuccess: false, message: "User ID required"};
+            resolve(output);
+        }
+        if (!userName){
+            output = {status:400, isSuccess: false, message: "Username required"};
+            resolve(output);
+        }
+        if (!phone){
+            output = {status:400, isSuccess: false, message: "Phone required"};
+            resolve(output);
+        }
+        if (!firstName){
+            output = {status:400, isSuccess: false, message: "First Name required"};
+            resolve(output);
+        }
+        if (!lastName){
+            output = {status:400, isSuccess: false, message: "Last Name required"};
+            resolve(output);
+        }
+        var isValidPhone = helperFile.checkValidPhone(phone);
+        if (!isValidPhone){
+            output = {status: 400, isSuccess: false, message: "Please enter a valid phone number" };
+            resolve(output);
+        }
+        helperFile.checkPhoneExistsUpdate(phone, userID).then(responseForPhoneCheck =>{
+            if (responseForPhoneCheck.isPhoneExists === true){
+                output = { status: 400, isSuccess: false, message: "Phone number already exists" };
+                resolve(output);
+            }else{
+                helperFile.checkUserNameExistsUpdate(userName, userID).then(responseForUserNameCheck => {
+                    if (responseForUserNameCheck.isUserNameExists === true) {
+                        output = {status: 400, isSuccess: false, message: "Username already exists"};
+                        resolve(output);
+                    }else{
+                        if (imageName === ''){
+                            SQL = `UPDATE users SET username = '${userName}', first_name = '${firstName}', last_name = '${lastName}',
+                                   phone = '${phone}' WHERE id = ${userID}` ;
+                        }else{
+                            var imagePath = process.env.BASE_URL+'/images/'+imageName;
+                            SQL = `UPDATE users SET username = '${userName}', first_name = '${firstName}', last_name = '${lastName}',
+                                   phone = '${phone}', image = '${imagePath}' WHERE id = ${userID}` ;
+                        }
+                        helperFile.executeQuery(SQL).then(response => {
+                            if (!response.isSuccess){
+                                output = {status: 400, isSuccess: false, message: response.message};
+                                resolve(output);
+                            }else{
+                                SQL = `SELECT * FROM users WHERE id = ${userID}`;
+                                helperFile.executeQuery(SQL).then(responseForUser => {
+                                   if (!responseForUser.isSuccess){
+                                       output = {status: 400, isSuccess: false, message: responseForUser.message};
+                                       resolve(output);
+                                   } else{
+                                       if (responseForUser.data.length > 0){
+                                            resolve(responseForUser);
+                                       }
+                                   }
+                                });
+                            }
+                        })
+                    }
+                });
+            }
+        });
+    });
+};
 
 module.exports = auth;
