@@ -1,11 +1,7 @@
 var Cryptr = require('cryptr');
 cryptr = new Cryptr(process.env.PASS_SECRET);
 var helperFile = require('../helpers/helperFunctions.js');
-
 var auth = require('./auth');
-const geolib = require('geolib');
-// import * as geolib from 'geolib';
-
 
 exports.getNearbyDispensaries = function (req, res) {
     var userID = req.query.user_id || '';
