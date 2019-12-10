@@ -229,7 +229,7 @@ var auth = {
             // spoofing the DB response for simplicity
             if (token) {
                 var sql = "SELECT user_id FROM user_token WHERE token = '" + token + "' LIMIT 1";
-                helperFile.executeQuery(sql).then(response => {
+                helperFile.executeQuery(sql).then(response => { console.log(response)
                     if (!response.isSuccess) {
                         output = { status: 400, isSuccess: false, message: response.message };
                     }
@@ -480,7 +480,7 @@ var auth = {
                 else {
                     if (response.data.length > 0) {
                         if (response.data[0].code === verificationCode) {
-                            var sql = `UPDATE users SET email_verified_at = 'true', longitude = ${longitude}, latitude = ${latitude} WHERE id = ${userId}`;
+                            var sql = `UPDATE users SET email_verified_at = CURRENT_TIMESTAMP, longitude = ${longitude}, latitude = ${latitude} WHERE id = ${userId}`;
                             helperFile.executeQuery(sql).then(response => {
                                 if (!response.isSuccess) {
                                     output = { status: 400, isSuccess: false, message: response.message };
@@ -777,7 +777,7 @@ auth.getHomeContent = function(req, res){
 };
 
 auth.getUserProfile = function(req, res){
-  var userID = req.body.user_id || '';
+  var userID = req.query.user_id || '';
   if (!userID){
       output = {status:400, isSuccess: false, message: "User ID required"};
       res.json(output);

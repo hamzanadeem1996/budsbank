@@ -8,9 +8,9 @@ const geolib = require('geolib');
 
 
 exports.getNearbyDispensaries = function (req, res) {
-    var userID = req.body.user_id || '';
-    var longitude = req.body.longitude || '';
-    var latitude = req.body.latitude || '';
+    var userID = req.query.user_id || '';
+    var longitude = req.query.longitude || '';
+    var latitude = req.query.latitude || '';
     var limit = req.query.limit || process.env.LIMIT;
     var offset = req.query.offset || process.env.OFF_SET;
 
@@ -234,8 +234,8 @@ exports.unFollowDispensary = function (req, res) {
 };
 
 exports.getDispensaryByID = function (req, res) {
-    var dispensaryID = req.body.dispensary_id || '';
-    var userID = req.body.user_id || '';
+    var dispensaryID    = req.query.dispensary_id || '';
+    var userID          = req.query.user_id || '';
     if (!dispensaryID){
         output = {status: 400, isSuccess: false, message: "Dispensary ID required "};
         res.json(output);
@@ -246,20 +246,33 @@ exports.getDispensaryByID = function (req, res) {
         res.json(output);
         return;
     }
-    SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
-            created FROM dispensaries WHERE id = ${dispensaryID}`;
-    helperFile.executeQuery(SQL).then(response => {
-       if (!response.isSuccess){
-           output = {status: 400, isSuccess: false, message: response.message};
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(userCheck => {
+       if (!userCheck.isSuccess){
+           output = {status: 400, isSuccess: false, message: userCheck.message};
            res.json(output);
        } else{
-           if (response.data.length > 0){
-               helperFile.checkFollowedDispensaries(response.data, userID).then(responseForThis => {
-                   output = {status: 200, isSuccess: true, message: "Success", dispensary: responseForThis[0]};
-                   res.json(output);
+           if (userCheck.data.length > 0){
+               SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+            created FROM dispensaries WHERE id = ${dispensaryID}`;
+               helperFile.executeQuery(SQL).then(response => {
+                   if (!response.isSuccess){
+                       output = {status: 400, isSuccess: false, message: response.message};
+                       res.json(output);
+                   } else{
+                       if (response.data.length > 0){
+                           helperFile.checkFollowedDispensaries(response.data, userID).then(responseForThis => {
+                               output = {status: 200, isSuccess: true, message: "Success", dispensary: responseForThis[0]};
+                               res.json(output);
+                           });
+                       }else{
+                           output = {status: 400, isSuccess: false, message: "Invalid dispensary"};
+                           res.json(output);
+                       }
+                   }
                });
            }else{
-               output = {status: 400, isSuccess: false, message: "Incorrect dispensary ID"};
+               output = {status: 400, isSuccess: false, message: "Invalid user"};
                res.json(output);
            }
        }
