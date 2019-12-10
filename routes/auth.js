@@ -706,13 +706,12 @@ function sendVerificationCodeToEmail(email, requestType, userID) {
 }
 
 auth.getHomeContent = function(req, res){
-    var userID = req.body.user_id || '';
-    var longitude = req.body.longitude || '';
-    var latitude = req.body.latitude || '';
+    var userID = req.query.user_id || '';
+    var longitude = req.query.longitude || '';
+    var latitude = req.query.latitude || '';
     var limit = req.query.limit || process.env.LIMIT;
     var offset = req.query.offset || process.env.OFF_SET;
-    var response = {};
-    var allData = [];
+
     if (!userID){
         output = {status: 400, isSuccess: false, message: "User ID required"};
         res.json(output);
@@ -729,49 +728,62 @@ auth.getHomeContent = function(req, res){
         return;
     }
 
-    dispensaries.getAvailableDispensaries(userID, longitude, latitude, limit, offset).then(responseForDispensaries=>{
-        if (!responseForDispensaries.isSuccess){
-            output = {status: 400, isSuccess: false, message: responseForDispensaries.message};
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(checkUser => {
+        if (!checkUser.isSuccess) {
+            output = {status: 400, isSuccess: false, message: checkUser.message};
             res.json(output);
-        } else{
-            dispensaries.getCompletedDispensaries(userID,limit, offset).then(responseForCompletedDispensaries => {
-                if (!responseForCompletedDispensaries.isSuccess){
-                    res.json(responseForCompletedDispensaries.message)
-                }else{
-                    responseForDispensaries["completed_dispensaries"] = responseForCompletedDispensaries.completed_dispensaries;
-                }
-                SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+        } else {
+            if (checkUser.data.length > 0) {
+                dispensaries.getAvailableDispensaries(userID, longitude, latitude, limit, offset).then(responseForDispensaries=>{
+                    if (!responseForDispensaries.isSuccess){
+                        output = {status: 400, isSuccess: false, message: responseForDispensaries.message};
+                        res.json(output);
+                    } else{
+                        dispensaries.getCompletedDispensaries(userID,limit, offset).then(responseForCompletedDispensaries => {
+                            if (!responseForCompletedDispensaries.isSuccess){
+                                res.json(responseForCompletedDispensaries.message)
+                            }else{
+                                responseForDispensaries["completed_dispensaries"] = responseForCompletedDispensaries.completed_dispensaries;
+                            }
+                            SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
                                     created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
                                     cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
                                     sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
                                     WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
                                     ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
-                helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
-                    if (!responseForFeaturedDispensaries.isSuccess) {
-                        output = {status: 400, isSuccess: false, message: responseForFeaturedDispensaries.message};
-                        res.json(output);
-                    } else {
-                        responseForDispensaries["featured_dispensaries"] = responseForFeaturedDispensaries.data;
-                    }
-                    voucher.getVoucherContent(userID, 'available',limit, offset).then(responseForAvailableVoucher => {
-                        if (!responseForAvailableVoucher.isSuccess){
-                            output = {status: 400, isSuccess: false, message: responseForAvailableVoucher.message};
-                            res.json(output);
-                        }else{
-                            responseForDispensaries["available_vouchers"] = responseForAvailableVoucher.vouchers;
-                        }
-                        voucher.getVoucherContent(userID, 'redeemed',limit, offset).then(responseForRedeemedVoucher => {
-                            if (!responseForRedeemedVoucher.isSuccess){
-                                output = {status: 400, isSuccess: false, message: responseForRedeemedVoucher.message};
-                                res.json(output);
-                            }else{
-                                responseForDispensaries["redeemed_vouchers"] = responseForRedeemedVoucher.vouchers;
-                            }
-                            res.json(responseForDispensaries);
+                            helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
+                                if (!responseForFeaturedDispensaries.isSuccess) {
+                                    output = {status: 400, isSuccess: false, message: responseForFeaturedDispensaries.message};
+                                    res.json(output);
+                                } else {
+                                    responseForDispensaries["featured_dispensaries"] = responseForFeaturedDispensaries.data;
+                                }
+                                voucher.getVoucherContent(userID, 'available',limit, offset).then(responseForAvailableVoucher => {
+                                    if (!responseForAvailableVoucher.isSuccess){
+                                        output = {status: 400, isSuccess: false, message: responseForAvailableVoucher.message};
+                                        res.json(output);
+                                    }else{
+                                        responseForDispensaries["available_vouchers"] = responseForAvailableVoucher.vouchers;
+                                    }
+                                    voucher.getVoucherContent(userID, 'redeemed',limit, offset).then(responseForRedeemedVoucher => {
+                                        if (!responseForRedeemedVoucher.isSuccess){
+                                            output = {status: 400, isSuccess: false, message: responseForRedeemedVoucher.message};
+                                            res.json(output);
+                                        }else{
+                                            responseForDispensaries["redeemed_vouchers"] = responseForRedeemedVoucher.vouchers;
+                                        }
+                                        res.json(responseForDispensaries);
+                                    });
+                                });
+                            });
                         });
-                    });
+                    }
                 });
-            });
+            } else {
+                output = {status: 400, isSuccess: false, message: "Invalid User"};
+                res.json(output);
+            }
         }
     });
 };

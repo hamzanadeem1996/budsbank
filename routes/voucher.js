@@ -2,7 +2,7 @@ var helperFile = require('../helpers/helperFunctions.js');
 var auth = require('./auth');
 
 exports.getAvailableVouchersList = function (req, res) {
-  var userID = req.body.user_id || '';
+  var userID = req.query.user_id || '';
     var limit = req.query.limit || process.env.LIMIT;
     var offset = req.query.offset || process.env.OFF_SET;
   if (!userID){
@@ -10,13 +10,26 @@ exports.getAvailableVouchersList = function (req, res) {
       res.json(output);
       return;
   }
-  exports.getVoucherContent(userID, 'available', limit, offset).then(response => {
-     res.json(response);
+  SQL = `SELECT * FROM users WHERE id = ${userID}`;
+  helperFile.executeQuery(SQL).then(checkUser => {
+     if (!checkUser.isSuccess){
+         output = {status: 400, isSuccess: false, message: checkUser.message};
+         res.json(output);
+     } else{
+         if (checkUser.data.length > 0){
+             exports.getVoucherContent(userID, 'available', limit, offset).then(response => {
+                 res.json(response);
+             });
+         }else{
+             output = {status: 400, isSuccess: false, message: "Invalid User"};
+             res.json(output);
+         }
+     }
   });
 };
 
 exports.getRedeemedVouchersList = function (req, res) {
-    var userID = req.body.user_id || '';
+    var userID = req.query.user_id || '';
     var limit = req.query.limit || process.env.LIMIT;
     var offset = req.query.offset || process.env.OFF_SET;
     if (!userID){
@@ -24,8 +37,21 @@ exports.getRedeemedVouchersList = function (req, res) {
         res.json(output);
         return;
     }
-    exports.getVoucherContent(userID, 'redeemed', limit, offset).then(response => {
-        res.json(response);
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(checkUser => {
+        if (!checkUser.isSuccess) {
+            output = {status: 400, isSuccess: false, message: checkUser.message};
+            res.json(output);
+        } else {
+            if (checkUser.data.length > 0) {
+                exports.getVoucherContent(userID, 'redeemed', limit, offset).then(response => {
+                    res.json(response);
+                });
+            } else {
+                output = {status: 400, isSuccess: false, message: "Invalid User"};
+                res.json(output);
+            }
+        }
     });
 };
 

@@ -25,16 +25,28 @@ exports.getNearbyDispensaries = function (req, res) {
         res.json(output);
         return;
     }
-    exports.getAvailableDispensaries(userID, longitude, latitude, limit, offset).then(response =>{
-       if (!response.isSuccess){
-           output = {status: 400, isSuccess: false, message: response.message };
-           res.json(output);
-       } else{
-           output = {status: 200, isSuccess: true, message: "Success", dispensaries: response.dispensaries };
-           res.json(response);
-       }
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(checkUser => {
+        if (!checkUser.isSuccess){
+            output = {status: 400, isSuccess: false, message: checkUser.message };
+            res.json(output);
+        }else{
+            if (checkUser.data.length > 0){
+                exports.getAvailableDispensaries(userID, longitude, latitude, limit, offset).then(response =>{
+                    if (!response.isSuccess){
+                        output = {status: 400, isSuccess: false, message: response.message };
+                        res.json(output);
+                    } else{
+                        output = {status: 200, isSuccess: true, message: "Success", dispensaries: response.dispensaries };
+                        res.json(response);
+                    }
+                });
+            }else{
+                output = {status: 400, isSuccess: false, message: "Invalid User" };
+                res.json(output);
+            }
+        }
     });
-
 };
 
 exports.getAvailableDispensaries = function(userID, longitude, latitude, limit, offset){
@@ -294,7 +306,7 @@ exports.getCompletedDispensaries = function (userID, limit, offset) {
 };
 
 exports.getCompletedDispensariesByUserID = function (req, res) {
-    var userID = req.body.user_id || '';
+    var userID = req.query.user_id || '';
     var limit = req.query.limit || process.env.LIMIT;
     var offset = req.query.offset || process.env.OFF_SET;
 
@@ -303,14 +315,27 @@ exports.getCompletedDispensariesByUserID = function (req, res) {
         res.json(output);
         return;
     }
-    exports.getCompletedDispensaries(userID, limit, offset).then(response=>{
-       res.json(response);
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(userCheck => {
+        if (!userCheck.isSuccess){
+            output = {status: 400, isSuccess: false, message: userCheck.message};
+            res.json(output);
+        }else{
+            if (userCheck.data.length > 0){
+                exports.getCompletedDispensaries(userID, limit, offset).then(response=>{
+                    res.json(response);
+                });
+            }else{
+                output = {status: 400, isSuccess: false, message: "Invalid User"};
+                res.json(output);
+            }
+        }
     });
 };
 
 exports.searchDispensary = function (req, res) {
-  var keyword = req.body.keyword || '';
-  var userID = req.body.user_id || '';
+  var keyword = req.query.keyword || ''; console.log(req.query)
+  var userID = req.query.user_id || '';
   var limit = req.query.limit || process.env.LIMIT;
   var offset = req.query.offset || process.env.OFF_SET;
 
@@ -361,9 +386,9 @@ exports.searchDispensary = function (req, res) {
 };
 
 exports.featuredDispensariesList = function (req, res) {
-    var userID = req.body.user_id || '';
-    var longitude = req.body.longitude || '';
-    var latitude = req.body.latitude || '';
+    var userID = req.query.user_id || '';
+    var longitude = req.query.longitude || '';
+    var latitude = req.query.latitude || '';
     var limit = req.query.limit || process.env.LIMIT;
     var offset = req.query.offset || process.env.OFF_SET;
 
@@ -382,33 +407,46 @@ exports.featuredDispensariesList = function (req, res) {
         res.json(output);
         return;
     }
-    SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(checkUser => {
+       if (!checkUser.isSuccess){
+           output = {status: 400, isSuccess: false, message: checkUser.message};
+           res.json(output);
+       } else{
+           if (checkUser.data.length > 0){
+               SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
             created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
             cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
             sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
             WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
             ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
 
-    helperFile.executeQuery(SQL).then(response => {
-        if (!response.isSuccess){
-            output = {status: 400, isSuccess: false, message: response.message};
-            res.json(output);
-        }else{
-            if (response.data.length > 0){
-                helperFile.checkFollowedDispensaries(response.data, userID).then(responseForCHeck => {
-                    output = {status: 200, isSuccess: true, message: "Success", dispensaries: responseForCHeck};
-                    res.json(output);
-                });
-            }else{
-                output = {status: 200, isSuccess: true, message: "Success", dispensaries: response.data};
-                res.json(output);
-            }
-        }
+               helperFile.executeQuery(SQL).then(response => {
+                   if (!response.isSuccess){
+                       output = {status: 400, isSuccess: false, message: response.message};
+                       res.json(output);
+                   }else{
+                       if (response.data.length > 0){
+                           helperFile.checkFollowedDispensaries(response.data, userID).then(responseForCHeck => {
+                               output = {status: 200, isSuccess: true, message: "Success", dispensaries: responseForCHeck};
+                               res.json(output);
+                           });
+                       }else{
+                           output = {status: 200, isSuccess: true, message: "Success", dispensaries: response.data};
+                           res.json(output);
+                       }
+                   }
+               });
+           }else{
+               output = {status: 400, isSuccess: false, message: "Invalid User"};
+               res.json(output);
+           }
+       }
     });
 }
 
 exports.userFollowedDispensaries = function (req, res) {
-    var userID =  req.body.user_id || '';
+    var userID =  req.query.user_id || '';
     var offset = req.query.offset || process.env.OFF_SET;
     var limit = req.query.limit || process.env.LIMIT;
 
@@ -416,16 +454,29 @@ exports.userFollowedDispensaries = function (req, res) {
         output = {status: 400, isSuccess: false, message: "User ID required"};
         res.json(output);
     }
-    SQL = `SELECT d.id, d.name, d.longitude, d.latitude, d.phone, d.address, d.image, d.opening_time, d.closing_time,
-            d.created FROM dispensaries AS d INNER JOIN user_dispensaries AS ufd ON d.id = ufd.dispensary_id
-            WHERE ufd.user_id = ${userID} ORDER BY ufd.id DESC LIMIT ${limit} OFFSET ${offset}`;
-    helperFile.executeQuery(SQL).then(response => {
-       if (!response.isSuccess){
-           output = {status: 400, isSuccess: false, message: response.message};
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(userCheck => {
+       if (!userCheck.isSuccess){
+           output = {status: 400, isSuccess: false, message: userCheck.message};
            res.json(output);
        } else{
-           output = {status: 200, isSuccess: true, message: "Success", dispensaries: response.data};
-           res.json(output);
+           if (userCheck.data.length > 0){
+               SQL = `SELECT d.id, d.name, d.longitude, d.latitude, d.phone, d.address, d.image, d.opening_time, d.closing_time,
+            d.created FROM dispensaries AS d INNER JOIN user_dispensaries AS ufd ON d.id = ufd.dispensary_id
+            WHERE ufd.user_id = ${userID} ORDER BY ufd.id DESC LIMIT ${limit} OFFSET ${offset}`;
+               helperFile.executeQuery(SQL).then(response => {
+                   if (!response.isSuccess){
+                       output = {status: 400, isSuccess: false, message: response.message};
+                       res.json(output);
+                   } else{
+                       output = {status: 200, isSuccess: true, message: "Success", dispensaries: response.data};
+                       res.json(output);
+                   }
+               });
+           }else{
+               output = {status: 400, isSuccess: false, message: "Invalid User"};
+               res.json(output);
+           }
        }
     });
 }

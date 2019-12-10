@@ -52,7 +52,7 @@ exports.enableDisableNotification = function (req, res) {
 };
 
 exports.getAllSettings = function (req, res) {
-  var userID = req.body.user_id || '';
+  var userID = req.query.user_id || '';
   if (!userID){
       output = {status: 400, isSuccess: false, message: "User ID required"};
       res.json(output);
@@ -145,7 +145,7 @@ exports.sendNotification = function (token, notification) {
 };
 
 exports.getAllNotifications = function (req, res) {
-    var userID = req.body.user_id || '';
+    var userID = req.query.user_id || '';
     var limit = req.query.limit || process.env.LIMIT;
     var offset = req.query.offset || process.env.OFF_SET;
     if (!userID){
@@ -201,6 +201,9 @@ exports.getAllNotifications = function (req, res) {
                         });
                     }
                 });
+            }else{
+                output = {status: 400, isSuccess: false, message: "Invalid User"};
+                res.json(output);
             }
         }
     });
@@ -208,7 +211,7 @@ exports.getAllNotifications = function (req, res) {
 
 exports.getNotificationContent = function (userID, type, limit, offset) {
   return new Promise((resolve)=>{
-      SQL = `SELECT n.id, d.name, d.image, n.title, n.notification, n.created, n.seen FROM notifications AS n INNER JOIN dispensaries as d
+      SQL = `SELECT n.id, d.id AS dispensary_id ,d.name, d.image, n.title, n.notification, n.created, n.seen FROM notifications AS n INNER JOIN dispensaries as d
                 ON n.dispensary_id = d.id WHERE n.user_id = ${userID} and seen = '${type}' LIMIT ${limit} OFFSET ${offset}`;
       helperFile.executeQuery(SQL).then(response => {
           if (!response.isSuccess){
@@ -220,4 +223,142 @@ exports.getNotificationContent = function (userID, type, limit, offset) {
           }
       })
   });
+};
+
+exports.getReedNotifications = function (req, res) {
+  var userID = req.query.user_id || '';
+  var limit = req.query.limit || process.env.LIMIT;
+  var offset = req.query.offset || process.env.OFF_SET;
+
+  if (!userID){
+      output = {status: 400, isSuccess: false, message: "User ID required"};
+      res.json(output);
+  }
+  SQL = `SELECT * FROM users WHERE id = ${userID}`;
+  helperFile.executeQuery(SQL).then(checkUser => {
+     if (!checkUser.isSuccess){
+         output = {status: 400, isSuccess: false, message: checkUser.message};
+         res.json(output)
+     } else{
+         if (checkUser.data.length > 0){
+             exports.getNotificationContent(userID, 'true', limit, offset).then(responseForSeen => {
+                 if (!responseForSeen.isSuccess) {
+                     output = {status: 400, isSuccess: false, message: responseForSeen.message};
+                     res.json(output);
+                 } else {
+                     responseForSeen.notifications.forEach(function (element) {
+                         var temp = element.seen;
+                         delete element.seen;
+                         if (temp === 'true') {
+                             element.read = true;
+                         } else {
+                             element.read = false;
+                         }
+                     });
+                     output = {status: 200, isSuccess: true, message: "Success", notifications: responseForSeen.notifications};
+                     res.json(output)
+                 }
+             });
+         }else{
+             output = {status: 400, isSuccess: false, message: "Invalid User"};
+             res.json(output)
+         }
+     }
+  });
+};
+
+exports.getUnReedNotifications = function (req, res) {
+    var userID = req.query.user_id || '';
+    var limit = req.query.limit || process.env.LIMIT;
+    var offset = req.query.offset || process.env.OFF_SET;
+
+    if (!userID){
+        output = {status: 400, isSuccess: false, message: "User ID required"};
+        res.json(output);
+    }
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(checkUser => {
+        if (!checkUser.isSuccess){
+            output = {status: 400, isSuccess: false, message: checkUser.message};
+            res.json(output)
+        } else{
+            if (checkUser.data.length > 0){
+                exports.getNotificationContent(userID, 'false', limit, offset).then(responseForSeen => {
+                    if (!responseForSeen.isSuccess) {
+                        output = {status: 400, isSuccess: false, message: responseForSeen.message};
+                        res.json(output);
+                    } else {
+                        responseForSeen.notifications.forEach(function (element) {
+                            var temp = element.seen;
+                            delete element.seen;
+                            if (temp === 'true') {
+                                element.read = true;
+                            } else {
+                                element.read = false;
+                            }
+                        });
+                        output = {status: 200, isSuccess: true, message: "Success", notifications: responseForSeen.notifications};
+                        res.json(output)
+                    }
+                });
+            }else{
+                output = {status: 400, isSuccess: false, message: "Invalid User"};
+                res.json(output)
+            }
+        }
+    });
+};
+
+exports.markReadNotification = function (req, res) {
+  var userID = req.body.user_id || '';
+  var notificationID = req.body.notification_id || '';
+
+  if (!userID){
+      output = {status: 400, isSuccess: false, message: "User ID required"};
+      res.json(output);
+      return;
+  }
+
+    if (!notificationID){
+        output = {status: 400, isSuccess: false, message: "Notification ID required"};
+        res.json(output);
+        return;
+    }
+
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(checkUser => {
+       if (!checkUser.isSuccess){
+           output = {status: 400, isSuccess: false, message: checkUser.message};
+           res.json(output);
+       } else{
+           if (checkUser.data.length > 0){
+               SQL = `SELECT * FROM notifications WHERE id = ${notificationID}`;
+               helperFile.executeQuery(SQL).then(checkNotification => {
+                  if (!checkNotification.isSuccess){
+                      output = {status: 400, isSuccess: false, message: checkNotification.message};
+                      res.json(output);
+                  } else{
+                      if (checkNotification.data.length > 0){
+                          SQL = `UPDATE notifications SET seen = 'true' WHERE id = ${notificationID}`;
+                          helperFile.executeQuery(SQL).then(updateNotification => {
+                             if (!updateNotification.isSuccess){
+                                 output = {status: 400, isSuccess: false, message: updateNotification.message};
+                                 res.json(output);
+                             } else{
+                                 output = {status: 200, isSuccess: true, message: "Notification marked read successfully"};
+                                 res.json(output);
+                             }
+                          });
+                      }else{
+                          output = {status: 400, isSuccess: false, message: "Invalid Notification"};
+                          res.json(output);
+                      }
+                  }
+               });
+           }else{
+               output = {status: 400, isSuccess: false, message: "Invalid User"};
+               res.json(output);
+           }
+       }
+    });
 };

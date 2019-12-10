@@ -5,8 +5,8 @@ var auth = require('./auth');
 var notification = require('./notifications');
 
 exports.getQuizQuestion = function (req, res) {
-  var userID = req.body.user_id || '';
-  var dispensaryID = req.body.dispensary_id || '';
+  var userID = req.query.user_id || '';
+  var dispensaryID = req.query.dispensary_id || '';
 
   if (!userID){
       output = {status: 400, isSuccess: false, message: "User ID required"};
@@ -18,18 +18,44 @@ exports.getQuizQuestion = function (req, res) {
         res.json(output);
         return;
     }
-    SQL = `SELECT id FROM quiz WHERE dispensary_id = ${dispensaryID} AND status = 1 LIMIT 1`;
-    helperFile.executeQuery(SQL).then(responseForQuiz => {
-       if (!responseForQuiz.isSuccess){
-           output = {status: 400, isSuccess: false, message: responseForQuiz.message};
+    SQL = `SELECT * FROM users WHERE id = ${userID}`;
+    helperFile.executeQuery(SQL).then(checkUser => {
+       if (!checkUser.isSuccess){
+           output = {status: 400, isSuccess: false, message: checkUser.message};
            res.json(output);
        } else{
-           if (responseForQuiz.data.length > 0){
-               helperFile.getQuizQuestions(responseForQuiz.data[0].id, userID).then(response => {
-                   res.json(response);
-               })
+           if (checkUser.data.length > 0){
+               SQL = `SELECT * FROM dispensaries WHERE id = ${dispensaryID}`;
+               helperFile.executeQuery(SQL).then(checkDispensary => {
+                  if (!checkDispensary.isSuccess){
+                      output = {status: 400, isSuccess: false, message: checkDispensary.message};
+                      res.json(output);
+                  } else{
+                      if (checkDispensary.data.length > 0){
+                          SQL = `SELECT id FROM quiz WHERE dispensary_id = ${dispensaryID} AND status = 1 LIMIT 1`;
+                          helperFile.executeQuery(SQL).then(responseForQuiz => {
+                              if (!responseForQuiz.isSuccess){
+                                  output = {status: 400, isSuccess: false, message: responseForQuiz.message};
+                                  res.json(output);
+                              } else{
+                                  if (responseForQuiz.data.length > 0){
+                                      helperFile.getQuizQuestions(responseForQuiz.data[0].id, userID).then(response => {
+                                          res.json(response);
+                                      })
+                                  }else{
+                                      output = {status: 400, isSuccess: false, message: "No quiz available for this dispensary"};
+                                      res.json(output);
+                                  }
+                              }
+                          });
+                      }else{
+                          output = {status: 400, isSuccess: false, message: "Invalid Dispansry"};
+                          res.json(output);
+                      }
+                  }
+               });
            }else{
-               output = {status: 400, isSuccess: false, message: "Invalid Dispensary ID"};
+               output = {status: 400, isSuccess: false, message: "Invalid User"};
                res.json(output);
            }
        }

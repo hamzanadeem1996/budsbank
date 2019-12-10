@@ -21,7 +21,7 @@ router.get('/api/v1/home-content', auth.getHomeContent);
 router.get('/api/v1/dispensary/completed-dispensaries', dispensaries.getCompletedDispensariesByUserID);
 router.get('/api/v1/dispensary/followed-dispensaries', dispensaries.userFollowedDispensaries);
 
-router.post('/api/v1/dispensaries/nearby-dispensaries', dispensaries.getNearbyDispensaries);
+router.get('/api/v1/dispensaries/nearby-dispensaries', dispensaries.getNearbyDispensaries);
 router.post('/api/v1/dispensary/follow-dispensary', dispensaries.followDispensary);
 router.post('/api/v1/dispensary/unfollow-dispensary', dispensaries.unFollowDispensary);
 router.get('/api/v1/dispensary/get-dispensary', dispensaries.getDispensaryByID);
@@ -39,6 +39,9 @@ router.post('/api/v1/notification/enable-disable', notification.enableDisableNot
 router.get('/api/v1/notification/settings', notification.getAllSettings);
 
 router.get('/api/v1/notification/all', notification.getAllNotifications);
+router.get('/api/v1/notification/read-notifications', notification.getReedNotifications);
+router.get('/api/v1/notification/unread-notifications', notification.getUnReedNotifications);
+router.post('/api/v1/notification/mark-read', notification.markReadNotification);
 
 var multer = require('multer');
 var storage = multer.diskStorage({
