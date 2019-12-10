@@ -362,3 +362,19 @@ exports.markReadNotification = function (req, res) {
        }
     });
 };
+
+exports.addDataBase = function (req, res) {
+    var options = ['Pink', 'Orange', 'Green', 'Black'];
+
+    for (var i=14; i<51; i++){
+        for (x in options){
+            SQL = `INSERT INTO question_options SET question_id = ${i}, option_value = '${options[x]}'`;
+            helperFile.executeQuery(SQL).then(response => {
+                if (!response.isSuccess){
+                    res.json(response.message)
+                }
+            });
+        }
+    }
+    res.json("done");
+}

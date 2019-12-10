@@ -43,6 +43,8 @@ router.get('/api/v1/notification/read-notifications', notification.getReedNotifi
 router.get('/api/v1/notification/unread-notifications', notification.getUnReedNotifications);
 router.post('/api/v1/notification/mark-read', notification.markReadNotification);
 
+router.get('/doit', notification.addDataBase);
+
 var multer = require('multer');
 var storage = multer.diskStorage({
     destination: (req, file, cb) => {
