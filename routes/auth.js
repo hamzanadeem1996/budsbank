@@ -367,6 +367,8 @@ var auth = {
                                     "phone"       : phone,
                                     "password"    : encryptedPassword
                                 };
+
+
                                 helperFile.addUser(userObject).then(response => {
                                     if (!response.isSuccess){
                                         output = { status: 400, isSuccess: false, message: response.message };
