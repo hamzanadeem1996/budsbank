@@ -110,7 +110,7 @@ exports.addUser = function (user) {
                      if (!responseForCoins.isSuccess){
                          output = {status: 400, isSuccess: false, message: responseForCoins.message };
                      } else{
-                         var SQL = `SELECT t.token as session_token, u.id, u.email, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${lastInsertId}`;
+                         var SQL = `SELECT t.token as session_token, u.id, u.email, u.phone, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${lastInsertId}`;
                          exports.executeQuery(SQL).then(responseForUserModel => {
                              if (!responseForUserModel.isSuccess){
                                  output = {status: 400, isSuccess: false, message: responseForUserModel.message };
