@@ -51,11 +51,11 @@ exports.getNearbyDispensaries = function (req, res) {
 
 exports.getAvailableDispensaries = function(userID, longitude, latitude, limit, offset){
     return new Promise((resolve)=>{
-        SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+        SQL = `SELECT id, name, longitude, latitude, phone, address, image,
             created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
             cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
-            sin( radians( latitude ) ) ) ) < 5 AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
-            WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) AND featured = 'false' 
+            sin( radians( latitude ) ) ) ) < 5 AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries
+            WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) AND featured = 'false'
             ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
 
         helperFile.executeQuery(SQL).then(response => {
@@ -290,7 +290,7 @@ exports.getDispensaryByID = function (req, res) {
 exports.getCompletedDispensaries = function (userID, limit, offset) {
 
   return new Promise((resolve)=>{
-     SQL = `SELECT d.id, d.name, d.longitude, d.latitude, d.phone, d.address, d.image, d.image, d.opening_time, d.closing_time,
+     SQL = `SELECT d.id, d.name, d.longitude, d.latitude, d.phone, d.address, d.image, d.image,
             d.created FROM dispensaries AS d INNER JOIN user_disabled_dispensaries as udd ON udd.dispensary_id = d.id
             WHERE udd.user_id = ${userID} AND udd.expiry > CURRENT_TIMESTAMP ORDER BY udd.created DESC LIMIT ${limit} OFFSET ${offset}`;
      helperFile.executeQuery(SQL).then(response=>{ console.log(response)
@@ -357,7 +357,7 @@ exports.searchDispensary = function (req, res) {
        } else{
            if (userCheck.data.length > 0){
                SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
-            created FROM dispensaries WHERE name LIKE '%${keyword}%' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
+            created FROM dispensaries WHERE name LIKE '%${keyword}%' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries
             WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) AND featured = 'false'
             ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
 
@@ -414,11 +414,11 @@ exports.featuredDispensariesList = function (req, res) {
            res.json(output);
        } else{
            if (checkUser.data.length > 0){
-               SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
+               SQL = `SELECT id, name, longitude, latitude, phone, address, image,
             created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
             cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
-            sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
-            WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
+            sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries
+            WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP)
             ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
 
                helperFile.executeQuery(SQL).then(response => {
@@ -461,7 +461,7 @@ exports.userFollowedDispensaries = function (req, res) {
            res.json(output);
        } else{
            if (userCheck.data.length > 0){
-               SQL = `SELECT d.id, d.name, d.longitude, d.latitude, d.phone, d.address, d.image, d.opening_time, d.closing_time,
+               SQL = `SELECT d.id, d.name, d.longitude, d.latitude, d.phone, d.address, d.image,
             d.created FROM dispensaries AS d INNER JOIN user_dispensaries AS ufd ON d.id = ufd.dispensary_id
             WHERE ufd.user_id = ${userID} ORDER BY ufd.id DESC LIMIT ${limit} OFFSET ${offset}`;
                helperFile.executeQuery(SQL).then(response => {
@@ -479,4 +479,26 @@ exports.userFollowedDispensaries = function (req, res) {
            }
        }
     });
-}
+};
+
+exports.getDispensaryTimmings = function(dispensaryID){
+  return new Promise((resolve)=>{
+    SQL = `SELECT * FROM dispensary_timmings WHERE dispensary_id = ${dispensaryID}`;
+    helperFile.executeQuery(SQL).then(responseForTime => {
+      if (!responseForTime.isSuccess) {
+        output = {status:400, isSuccess: false, message: responseForTime.message}
+        resolve(output);
+      }else{
+        var time = {
+          'open_day' : responseForTime.data[0].open_day,
+          'close_day': responseForTime.data[0].close_day,
+          'open_time': responseForTime.data[0].open_time,
+          'close_time': responseForTime.data[0].close_time
+        }
+        // var time = responseForTime.data[0].open_day+'-'+responseForTime.data[0].close_day+' '+responseForTime.data[0].open_time+'-'+responseForTime.data[0].close_time;
+        output = {status:200, isSuccess: true, message: "Success", timming: time}
+        resolve(output);
+      }
+    })
+  });
+};

@@ -65,7 +65,7 @@ exports.getAllSettings = function (req, res) {
          res.json(output);
      } else{
          if (resposnseForUserCheck.data.length > 0){
-             SQL = `SELECT d.id, d.name, s.enable FROM dispensaries as d INNER JOIN settings AS s ON s.dispensary_id = d.id WHERE s.user_id = ${userID}`;
+             SQL = `SELECT d.id, d.name, d.image, s.enable FROM dispensaries as d INNER JOIN settings AS s ON s.dispensary_id = d.id WHERE s.user_id = ${userID}`;
              helperFile.executeQuery(SQL).then(response => {
                  if (!response.isSuccess){
                      output = {status: 400, isSuccess: false, message: response.message};
@@ -363,18 +363,58 @@ exports.markReadNotification = function (req, res) {
     });
 };
 
-exports.addDataBase = function (req, res) {
-    var options = ['Pink', 'Orange', 'Green', 'Black'];
+exports.deleteNotification = function(req, res){
+  var notificationID = req.body.notification_id || '';
+  var userID = req.body.user_id || '';
+  if (!notificationID) {
+    output = {status: 400, isSuccess: false, message: "Notification ID required"}
+    res.json(output);
+    return;
+  }
+  if (!userID) {
+    output = {status: 400, isSuccess: false, message: "User ID required"}
+    res.json(output);
+    return;
+  }
 
-    for (var i=14; i<51; i++){
-        for (x in options){
-            SQL = `INSERT INTO question_options SET question_id = ${i}, option_value = '${options[x]}'`;
-            helperFile.executeQuery(SQL).then(response => {
-                if (!response.isSuccess){
-                    res.json(response.message)
+  SQL = `SELECT * FROM users WHERE id = ${userID}`;
+  helperFile.executeQuery(SQL).then(userCheck => {
+    if (!userCheck.isSuccess) {
+      output = {status: 400, isSuccess: false, message: userCheck.message}
+      res.json(output);
+    }else{
+      if (userCheck.data.length > 0) {
+        SQL = `SELECT * FROM notifications WHERE id = ${notificationID}`;
+        helperFile.executeQuery(SQL).then(notificationCheck => {
+          if (!notificationCheck.isSuccess) {
+            output = {status: 400, isSuccess: false, message: notificationCheck.message}
+            res.json(output);
+          }else{
+            if (notificationCheck.data.length > 0) {
+              SQL = `DELETE FROM notifications WHERE id = ${notificationID}`;
+              helperFile.executeQuery(SQL).then(response => {
+                if (!response.isSuccess) {
+                  output = {status: 400, isSuccess: false, message: "Internal Server Error"}
+                  res.json(output);
+                }else{
+                  output = {status: 200, isSuccess: true, message: "Notification deleted successfully"}
+                  res.json(output);
                 }
-            });
-        }
+              });
+            }else{
+              output = {status: 400, isSuccess: false, message: "Invalid Notification ID"}
+              res.json(output);
+            }
+          }
+        });
+      }else{
+        output = {status: 400, isSuccess: false, message: "Invalid User Account"}
+        res.json(output);
+      }
     }
-    res.json("done");
+  });
+};
+
+exports.doDataEntry = function(req, res){
+  
 }

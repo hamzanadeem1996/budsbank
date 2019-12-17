@@ -3,6 +3,7 @@ var async = require('async');
 var jwt = require('jwt-simple');
 var output;
 var moment = require('moment');
+var dispensary = require('../routes/dispansaries');
 
 
 exports.executeQuery = function executeQuery(Query) {
@@ -157,6 +158,14 @@ exports.checkFollowedDispensaries = function (dispensaries, userID) {
                 }else{
                     dispensaries[index]["is_followed"] = false;
                 }
+                dispensary.getDispensaryTimmings(data.id).then(responseForTime => {
+                  if (!responseForTime.isSuccess){ console.log(responseForTime);
+                    output = {status: 400, isSuccess: false, message: responseForTime.message};
+                    resolve(output);
+                  } { console.log(responseForTime.timming);
+                    dispensaries[index]['open_close_time'] = responseForTime.timming;
+                  }
+                });
            }
             callback();
         });
@@ -395,7 +404,7 @@ exports.addUserDisabledDispensary = function (userID, dispensaryID) {
                    }
                 });
             }else{
-                SQL = `INSERT INTO user_disabled_dispensaries SET user_id = ${userID}, dispensary_id = ${dispensaryID} 
+                SQL = `INSERT INTO user_disabled_dispensaries SET user_id = ${userID}, dispensary_id = ${dispensaryID}
                 ,status = 'true', expiry = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ${process.env.DISPENSARY_DISABLE_TIME} DAY)`;
                 exports.executeQuery(SQL).then(responseForUpdate => { console.log(responseForUpdate)
                     if (!responseForUpdate.isSuccess){
@@ -511,7 +520,5 @@ exports.addNotificationSetting = function (userID, dispensaryID, type) {
                   }
               }
           })
-
-
   });
 };

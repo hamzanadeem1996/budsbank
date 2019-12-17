@@ -97,8 +97,8 @@ var auth = {
                             SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
                                     created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
                                     cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
-                                    sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
-                                    WHERE user_id = ${response.user.id} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
+                                    sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries
+                                    WHERE user_id = ${response.user.id} AND status = 'true' AND expiry > CURRENT_TIMESTAMP)
                                     ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
                             helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
                                 if (!responseForFeaturedDispensaries.isSuccess){
@@ -185,10 +185,10 @@ var auth = {
                     if (response.data.length > 0) {
                         var dbPassword = cryptr.decrypt(response.data[0].password);
                         if (password === dbPassword) {
-                            if (response.data[0].email_verified_at === null){
-                                output = { status: 400, isSuccess: false, message: "User not verified" };
-                                return resolve(output);
-                            }else{
+                            // if (response.data[0].email_verified_at === null){
+                                // output = { status: 400, isSuccess: false, message: "User not verified" };
+                                // return resolve(output);
+                            // }else{
                                 var loggedInUserID = response.data[0].id;
                                 var token = jwt.encode({
                                     userId: loggedInUserID
@@ -209,7 +209,7 @@ var auth = {
                                         });
                                     }
                                 });
-                            }
+                            // }
                         }
                         else{
                             output = { status: 400, isSuccess: false, message: CNST.WRONG_PASSWORD };
@@ -509,8 +509,8 @@ var auth = {
                                                         SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
                                                         created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
                                                         cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
-                                                        sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
-                                                        WHERE user_id = ${userId} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
+                                                        sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries
+                                                        WHERE user_id = ${userId} AND status = 'true' AND expiry > CURRENT_TIMESTAMP)
                                                         ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
                                                         helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
                                                             if (!responseForFeaturedDispensaries.isSuccess){
@@ -746,14 +746,14 @@ auth.getHomeContent = function(req, res){
                             if (!responseForCompletedDispensaries.isSuccess){
                                 res.json(responseForCompletedDispensaries.message)
                             }else{
-                                responseForDispensaries["User"] = checkUser.data[0];
+                                responseForDispensaries["user"] = checkUser.data[0];
                                 responseForDispensaries["completed_dispensaries"] = responseForCompletedDispensaries.completed_dispensaries;
                             }
                             SQL = `SELECT id, name, longitude, latitude, phone, address, image, opening_time, closing_time,
                                     created FROM dispensaries WHERE ( 6371 * acos( cos( radians(${latitude}) ) * cos( radians( latitude ) ) *
                                     cos( radians( longitude ) - radians(${longitude}) ) + sin( radians(${latitude}) ) *
-                                    sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries 
-                                    WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP) 
+                                    sin( radians( latitude ) ) ) ) < 5 AND featured = 'true' AND id NOT IN (SELECT dispensary_id FROM user_disabled_dispensaries
+                                    WHERE user_id = ${userID} AND status = 'true' AND expiry > CURRENT_TIMESTAMP)
                                     ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
                             helperFile.executeQuery(SQL).then(responseForFeaturedDispensaries => {
                                 if (!responseForFeaturedDispensaries.isSuccess) {
