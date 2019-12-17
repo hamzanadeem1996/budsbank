@@ -798,7 +798,7 @@ auth.getUserProfile = function(req, res){
       res.json(output);
       return;
   }
-  var SQL = `SELECT t.token as session_token, u.id, u.email, u.phone, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${userID}`;
+  var SQL = `SELECT t.token as session_token, u.id, u.email, u.phone, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, u.latitude, u.longitude, u.created, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${userID}`;
   // SQL = `SELECT * FROM users WHERE id = ${userID}`;
   helperFile.executeQuery(SQL).then(response => {
      if (!response.isSuccess){
@@ -873,7 +873,7 @@ auth.updateUserProfile = function(req, imageName){
                                 output = {status: 400, isSuccess: false, message: response.message};
                                 resolve(output);
                             }else{
-                              var SQL = `SELECT t.token as session_token, u.id, u.email, u.phone, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${userID}`;
+                              var SQL = `SELECT t.token as session_token, u.id, u.email, u.phone, u.email_verified_at, u.username, u.first_name, u.last_name, u.image, u.latitude, u.longitude, u.created, c.coins as coins_earned FROM users as u INNER JOIN user_token as t ON u.id = t.user_id INNER JOIN coins as c ON c.user_id = u.id WHERE u.id = ${userID}`;
                                 // SQL = `SELECT * FROM users WHERE id = ${userID}`;
                                 helperFile.executeQuery(SQL).then(responseForUser => {
                                    if (!responseForUser.isSuccess){
@@ -882,6 +882,9 @@ auth.updateUserProfile = function(req, imageName){
                                    } else{
                                        if (responseForUser.data.length > 0){
                                             resolve(responseForUser);
+                                       }else{
+                                         output = {status: 400, isSuccess: false, message: "Invalid user ID"};
+                                         resolve(output);
                                        }
                                    }
                                 });
