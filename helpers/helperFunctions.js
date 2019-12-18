@@ -200,11 +200,19 @@ exports.getQuizQuestions = function (quizID, userID) {
                              questionsList.push(responseForRandomQuestion[x])
                          }
                      }
+                     for(x in questionsList){
+                         var item = questionsList[Math.floor(Math.random()*questionsList.length)];
+                         if (questionsList.indexOf(item) === -1){
+                             questionsList.push(item);
+                         }
+                     }
                     if (questionsList.length === 5){
-                        Data = {
-                            "questions" : responseForRandomQuestion
-                        };
-                        resolve(Data);
+                        exports.getQuestionOptions(questionsList).then(finalResponse=>{
+                            Data = {
+                                "questions" : finalResponse
+                            };
+                            resolve(Data);
+                        });
                     }else{
                         SQL = `SELECT q.id, q.question FROM quiz_questions AS q INNER JOIN question_seen_status
                          AS qs ON qs.question_id = q.id WHERE (qs.user_id = ${userID} AND qs.quiz_id = ${quizID}) ORDER BY qs.created ASC`;
@@ -231,7 +239,6 @@ exports.getQuizQuestions = function (quizID, userID) {
                                    };
                                    resolve(Data);
                                });
-
                            }
                         });
                     }
@@ -250,7 +257,12 @@ exports.getQuizQuestions = function (quizID, userID) {
 exports.getQuestionOptions = function (questions) {
     return new Promise((resolve) => {
        async.eachOfSeries(questions, function (data, index, callback) {
-          SQL = `SELECT id, question_id, option_value,isAnswer FROM question_options WHERE question_id = ${data.id} AND status = 1`;
+           // if (data.length > 0){
+           //     SQL = `SELECT id, question_id, option_value,isAnswer FROM question_options WHERE question_id = ${data[0].id} AND status = 1`;
+           //
+           // }else{
+               SQL = `SELECT id, question_id, option_value,isAnswer FROM question_options WHERE question_id = ${data.id} AND status = 1`;
+           // }
           exports.executeQuery(SQL).then(response => {
              if (!response.isSuccess){
                  output = {status: 400, isSuccess: false, message: response.message};
@@ -309,7 +321,8 @@ exports.getRandomQuestion = function (questions, userID, quizID) {
                                           resolve(responseForQuestion.message);
                                       }else{
                                           questionList.push(responseForQuestion.data);
-                                          questions[index] = responseForQuestion.data;
+                                          // console.log(responseForQuestion.data[0]);
+                                          questions[index] = responseForQuestion.data[0];
                                       }
                                   })
                               }
